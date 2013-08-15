@@ -1,0 +1,18 @@
+{
+  "name": "tagpro-splats",
+  "description": "lambda's splat storage",
+  "version": "0.0.1",
+  "manifest_version": 2,
+  "permissions": [
+    "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["http://*.koalabeast.com/*"],
+      "js": ["main.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    "js/splats.js"
+  ]
+}
