@@ -6,7 +6,7 @@ lamb = (function(lamb) {
 
   init();
   function init () {
-    if (tagpro && tagpro.socket) {   
+    if (window.tagpro && tagpro.socket) {   
       return registerListeners();
     }
     

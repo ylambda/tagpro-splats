@@ -5,15 +5,11 @@
 
    ext.emit = emit;
    ext.listen = listen;
-   ext.merged = false;
+   ext.game = {splats: []};
+   ext.saved = false;
 
-  // Begin storing info
-  // Mapname, author, tiles, splats
-  // The port and server are used to help determine
-  // if this game has already been joined before
-  // e.g. hitting refresh
   ext.listen('map', function (data) {
-    var g = ext.game = {};
+    var g = ext.game;
 
     ext.port = window.location.port;
     ext.map = data.info.name || 'Untitled';
@@ -25,7 +21,7 @@
     g.author = data.info.author || 'Unknown';
     g.server = ext.server;
     g.joined = Date.now();
-    g.splats = data.splats;
+    g.splats = data.splats || [];
     g.gameEndsAt = g.gameEndsAt || null;
   })
 
@@ -34,104 +30,29 @@
     ext.game.splats.push(splat)
   });
 
-  // This is when the game will end.
-  // This time is used later when trying to merge unmerged map data
-  // If there are unmerged maps, and they are older than this time
-  // then the game is over and it's safe to merge.
   ext.listen('time', function(data) {
-    var g = ext.game = ext.game || {};
+    var g = ext.game;
     g.gameEndsAt = new Date(Date.now() + data.time).getTime();
   })
 
-  // Game has ended - usually because a team has scored
-  // enough goals.
-  // It is safe to merge - so we do it now
   ext.listen('end', function(){
     console.log('ended')
-    ext.merge(ext.game);
-    ext.merged = true;
+    save();
   })
 
-  ext.listen('save', save);  // force save
-  ext.listen('beforeunload', save); // before leaving the page
+  ext.listen('save', save);
+  ext.listen('beforeunload', save);
   function save() {
-    console.log('saving..')
     var g = ext.game;
-    if(!g.server || !g.gameEndsAt) return;
+    if(ext.saved || !g || !g.server || !g.gameEndsAt) return;
+    console.log('saving..')
     // set game id - ignore milliseconds
-    // I'm trying to make a way to identify a game
-    // I use the gameEndsAt, but I ignore the milliseconds because it's not exact..
-    // Time is critical for identification
     g.id = [g.server, g.port, g.map, g.gameEndsAt].join(':').slice(0,-3);
 
-    // I don't even want to read this...
-    // ugh
-    // I think im trying to go through all the unmerged data
-    // look for games that can safely be merged and merge them
-    // I'm also looking for the current game to see if I have old data
-    // e.g. refreshing
-    store.get('unmerged', function(res) {
-      var saved = false;
-      var unmerged = res.unmerged || [];
-      unmerged.forEach(function(game, index){
-        if(game.gameEndsAt < Date.now() && game.id !== g.id) {
-          console.log('merging past game')
-          ext.merge(game);
-          unmerged.splice(index, 1);
-        } else if(game.id === g.id && !ext.merged) {
-          console.log('replacing old game')
-          unmerged[index] = g;
-          saved = true;
-        }
-      })
-
-      // add to the unmerged stack if no old data is found
-      if(!saved && !ext.merged)
-        unmerged.push(g)
-
-      // save all the unmerged data
-      store.set({unmerged: unmerged}, function(){
-        console.log('store updated');
-      });
-    });
-  }
-
-  // This is the function that's fucked up
-  // Something in here is wrong
-  // but the idea here is to merge all the splats for a map
-  // I split it up by server, but that wasn't necessary
-  // A splat has an x,y coord. If there is another splat with the
-  // same coord, then just bump the count up.
-
-  ext.merge = function(game) {
-    var mapkey = [game.server, game.map].join(':');
-    store.get(mapkey, function(map){
-      if(!Object.keys(map).length) {
-        console.log('Creating new map entry')
-        map.name = game.name;
-        map.author = game.author;
-        map.splats = {};
-        map.tiles = game.tiles;
-        map.server = game.server;
-        map.merges = 0;
-      }
-
-      // merge the splats
-      game.splats.forEach(function(s){
-        var coord = s.x+','+s.y;
-        if(!map.splats[coord])
-          map.splats[coord] = 0;
-        map.splats[coord] += 1;
-      });
-
-      map.merges += 1;
-
-      var d= {};
-      d[mapkey] = map;
-      store.set(d, function(){
-        console.log('Merged data')
-      });
-    })
+    var data = {};
+    data[g.id] = g;
+    store.set(data);
+    ext.saved = true;
   }
 
   // clear local storage
@@ -143,7 +64,6 @@
   // log the given key
   ext.listen('get', function(key) {
     store.get(key, function(res) {
-      console.log(res);
     });
   });
 
@@ -168,7 +88,7 @@
     script.setAttribute("type", "application/javascript");
     script.src = chrome.extension.getURL(path);
     script.onload = removeScript;
-    document.body.appendChild(script);
+    (document.head||document.documentElement).appendChild(script);
   }
 
   function removeScript() {
