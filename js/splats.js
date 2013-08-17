@@ -4,44 +4,35 @@ lamb = (function(lamb) {
   // It simply passes messages to the chrome extension
   // using the `emit` function.
 
-  // Force extension to save data
-  lamb.save = function() {
-    emit('save')
-  }
-
-  // Dump info
-  lamb.info = function() {
-    emit('info');
-  }
-
-  // Read a key from LocalStorage
-  lamb.get = function(keys) {
-    emit('get', keys);
-  }
-
-  // Clear the database
-  lamb.clear = function() {
-    emit('clear');
+  init();
+  function init () {
+    if (tagpro && tagpro.socket) {   
+      return registerListeners();
+    }
+    
+    setTimeout(init, 1);
   }
 
   // Pass tagpro events to the extension
-  if(tagpro.socket) {
-    tagpro.socket.on('splat', function(data) {
-      emit('splat', data);
-    });
-    
-    tagpro.socket.on('map', function(data) {
-      emit('map', data);
-    })
-
-    tagpro.socket.on('time', function(data) {
-      emit('time', data);
-    })
-
-    tagpro.socket.on('end', function(data) {
-      emit('save')
-    })
+  function registerListeners() {
+    tagpro.socket.on('end',   function(data) { emit('end')          });
+    tagpro.socket.on('map',   function(data) { emit('map', data)    });
+    tagpro.socket.on('time',  function(data) { emit('time', data)   });
+    tagpro.socket.on('splat', function(data) { emit('splat', data)  });
   }
+
+  // Force extension to save
+  lamb.save = function() { emit('save') };
+
+  // Log extension info
+  lamb.info = function() { emit('info') };
+
+  // Read a key from local store
+  lamb.get = function(keys) { emit('get', keys) };
+
+  // Clear the database
+  lamb.clear = function() { emit('clear') };
+
 
   function emit(event, data){
     var e = new CustomEvent(event, {detail: data});
@@ -49,4 +40,5 @@ lamb = (function(lamb) {
   }
 
   return lamb;
+
 }(window.lamb || {}))
