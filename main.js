@@ -103,8 +103,6 @@
         return true;
       })
 
-      console.log(keys)
-
       var splats = keys.map(function(key) {
         return res[key].splats;
       })
