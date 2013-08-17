@@ -1,61 +1,72 @@
 (function() {
 
-   var ext = {};
-   var store = ext.store = chrome.storage.local;
+  var ext = {};
+  var store = ext.store = chrome.storage.local;
 
-   ext.emit = emit;
-   ext.listen = listen;
-   ext.game = {splats: []};
-   ext.saved = false;
+  ext.emit = emit;
+  ext.listen = listen;
+  ext.saved = false;
+  ext.game = {
+    splats: []
+  };
 
+  // Setup the data
   ext.listen('map', function (data) {
-    var g = ext.game;
+    var game = ext.game;
 
-    ext.port = window.location.port;
-    ext.map = data.info.name || 'Untitled';
-    ext.server = window.location.hostname.split('.')[0].split('-')[1];
+    game.splats = data.splats || game.splats;
 
-    g.map = ext.map;
-    g.port = ext.port;
-    g.tiles = data.tiles;
-    g.author = data.info.author || 'Unknown';
-    g.server = ext.server;
-    g.joined = Date.now();
-    g.splats = data.splats || [];
-    g.gameEndsAt = g.gameEndsAt || null;
+    // game.tiles = data.tiles;
+    game.map = data.info.name || 'Untitled';
+    game.author = data.info.author || 'Unknown';
+
+    game.port = window.location.port;
+    game.server = window.location.hostname.split('.')[0].split('-')[1];
+
+    game.joined = Date.now();
+    game.gameEndsAt = game.gameEndsAt || null;
   })
 
-  // TODO: handle multiple splats?
+  // Add incoming splats
   ext.listen('splat', function (splat) {
     ext.game.splats.push(splat)
   });
 
+  // Register the expected end time
   ext.listen('time', function(data) {
-    var g = ext.game;
-    g.gameEndsAt = new Date(Date.now() + data.time).getTime();
+    ext.game.gameEndsAt = new Date(Date.now() + data.time).getTime();
   })
 
-  ext.listen('end', function(){
-    console.log('ended')
-    save();
-  })
+  // Game is over, save everything
+  ext.listen('end', function(){ save() });
 
+  // Save if we haven't already
   ext.listen('save', save);
   ext.listen('beforeunload', save);
   function save() {
-    var g = ext.game;
-    if(ext.saved || !g || !g.server || !g.gameEndsAt) return;
-    console.log('saving..')
-    // set game id - ignore milliseconds
-    g.id = [g.server, g.port, g.map, g.gameEndsAt].join(':').slice(0,-3);
+    if(ext.saved)
+      return;
+
+    var game = ext.game;
+
+    if(!game.server || !game.gameEndsAt)
+      return;
+
+    // set game id
+    game.id = [game.server, game.port, game.map, game.gameEndsAt].join(':')
+    game.id = game.id.slice(0,-3); // ignore milliseconds
+
+    // save
+    console.log('saving...');
 
     var data = {};
-    data[g.id] = g;
+    data[game.id] = game;
     store.set(data);
+
     ext.saved = true;
   }
 
-  // clear local storage
+  // clear local store
   ext.listen('clear', function(){
     console.log('clearing...')
     store.clear();
@@ -64,10 +75,11 @@
   // log the given key
   ext.listen('get', function(key) {
     store.get(key, function(res) {
+      console.log(res)
     });
   });
 
-  // list info
+  // log extension info
   ext.listen('info', function(res) {
     console.log(ext);
   });
@@ -94,7 +106,6 @@
   function removeScript() {
     this.parentNode.removeChild(this);
   }
-
 
   var scripts = ["js/splats.js"];
   scripts.forEach(injectScript);
