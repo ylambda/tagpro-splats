@@ -80,9 +80,44 @@
   });
 
   // log extension info
-  ext.listen('info', function(res) {
+  ext.listen('info', function() {
     console.log(ext);
   });
+
+  ext.listen('export', function(data) {
+    var map = data.map;
+    var server = data.server;
+
+    store.get(null, function(res) {
+      var keys = Object.keys(res);
+
+      keys = keys.filter(function(key) {
+        var token = key.split(':');
+
+        if(server && server !== token[0])
+          return false;
+
+        if(map && map !== token[2])
+          return false;
+
+        return true;
+      })
+
+      console.log(keys)
+
+      var splats = keys.map(function(key) {
+        return res[key].splats;
+      })
+
+      splats = splats.reduce(function(prev, cur) {
+        return prev.concat(cur);
+      }, [])
+
+      window.open('data:text/html;charset=utf-8,' +
+        encodeURIComponent(JSON.stringify(splats))
+      );
+    })
+  })
 
   function listen(event, listener) {
     window.addEventListener(event, function(e){

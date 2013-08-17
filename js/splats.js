@@ -33,6 +33,12 @@ lamb = (function(lamb) {
   // Clear the database
   lamb.clear = function() { emit('clear') };
 
+  // Export splat data
+  lamb.export = function(map, server) { 
+    var data = {map: map, server: server};
+    emit('export', data)
+  }
+
 
   function emit(event, data){
     var e = new CustomEvent(event, {detail: data});
