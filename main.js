@@ -84,36 +84,47 @@
     console.log(ext);
   });
 
-  ext.listen('export', function(data) {
-    var map = data.map;
-    var server = data.server;
+  ext.listen('export', function(search) {
+    if(search == null)
+      search = new RegExp('.*')
+    
+    if(typeof search == 'string')
+      search = new RegExp(search);
 
     store.get(null, function(res) {
-      var keys = Object.keys(res);
+      var result;
+      var maps = [];
 
-      keys = keys.filter(function(key) {
-        var token = key.split(':');
+      // Find all matching map names
+      Object.keys(res).forEach(function(key) {
+        if(search.exec(key) === null)
+          return;
 
-        if(server && server !== token[0])
-          return false;
-
-        if(map && map !== token[2])
-          return false;
-
-        return true;
+        var tokens = key.split(':');
+        var name = tokens[2];
+        if(maps.indexOf(name) < 0)
+          maps.push(name)
       })
 
-      var splats = keys.map(function(key) {
-        return res[key].splats;
+      result = maps.map(function(name){
+        return {name: name, splats: reduceByName(name)};
       })
-
-      splats = splats.reduce(function(prev, cur) {
-        return prev.concat(cur);
-      }, [])
 
       window.open('data:text/html;charset=utf-8,' +
-        encodeURIComponent(JSON.stringify(splats))
+        encodeURIComponent(JSON.stringify(result))
       );
+
+      function reduceByName(name){
+        var splats = Object.keys(res).filter(function(key) {
+          if(search.exec(key) && key.match(name))
+            return true;
+        }).map(function(key) {
+          return res[key].splats;
+        }).reduce(function(prev, cur) {
+          return prev.concat(cur);
+        }, [])
+        return splats;
+      }
     })
   })
 

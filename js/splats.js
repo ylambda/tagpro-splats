@@ -34,9 +34,8 @@ lamb = (function(lamb) {
   lamb.clear = function() { emit('clear') };
 
   // Export splat data
-  lamb.export = function(map, server) { 
-    var data = {map: map, server: server};
-    emit('export', data)
+  lamb.export = function(search) {
+    emit('export', search)
   }
 
 
